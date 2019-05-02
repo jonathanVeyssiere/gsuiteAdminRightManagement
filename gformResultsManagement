@@ -1,0 +1,125 @@
+function googleAdminConsoleRightsRequest()
+
+{  
+  //Active sheets and tabs references
+  var document = SpreadsheetApp.getActive();
+  var mySheetNegatifCrit =  document.getSheetByName("Reglage Réponse Negative");
+  var mySheetPositifCrit =  document.getSheetByName("Reglage Réponse Positive");
+  var mysheetlist    =  document.getSheetByName("DemandesDroit");
+  
+  //Do I have answers parameters ?
+  if ((mySheetNegatifCrit.getRange("B5").getValue() == "") || (mySheetNegatifCrit.getRange("B7").getValue() == "") || 
+      (mySheetNegatifCrit.getRange("B9").getValue() == "") || (mySheetNegatifCrit.getRange("B11").getValue() == "") || 
+      (mySheetNegatifCrit.getRange("B13").getValue() == "")) 
+      {
+        Browser.msgBox("Error", "Il manque une information dans le parmètrage de la réponse négative !", Browser.Buttons.OK);
+        return;
+      }
+  
+  if ((mySheetPositifCrit.getRange("B5").getValue() == "") || (mySheetPositifCrit.getRange("B7").getValue() == "") || 
+      (mySheetPositifCrit.getRange("B9").getValue() == "") || (mySheetPositifCrit.getRange("B11").getValue() == "") || 
+      (mySheetPositifCrit.getRange("B13").getValue() == "")) 
+      {
+        Browser.msgBox("Error", "Il manque une information dans le parmètrage de la réponse positive !", Browser.Buttons.OK);
+        return;
+      }
+  
+  //List of email to send 
+  var myContact              = mysheetlist.getDataRange().getValues();
+  
+  //Email content to push
+  var emailSubjectPositif    = mySheetPositifCrit.getRange("B5").getValue();
+  var emailSalutationPositif = mySheetPositifCrit.getRange("B7").getValue();
+  var emailBodyPositif       = mySheetPositifCrit.getRange("B9").getValue();
+  var emailYourNamePositif   = mySheetPositifCrit.getRange("B11").getValue();
+  var emailYourAddrPositif   = Session.getUser().getEmail();
+  var replyToAddrPositif     = mySheetPositifCrit.getRange("B13").getValue();
+  var emailBCCPositif        = mySheetPositifCrit.getRange("B17").getValue();
+  
+
+  for (i=1; i < myContact.length; i++) 
+  {
+    var personPositif = myContact[i];
+
+    //If google admin right demand is accepted
+    if (personPositif[0] == "Accepté") 
+    {
+      var emailMsgPositif = emailSalutationPositif + " " + personPositif[3] + ", <br /><br />" + emailBodyPositif + "<br /><br />";
+      var advancedArgsPositif = {htmlBody:emailMsgPositif, name:emailYourNamePositif, replyTo:replyToAddrPositif};
+      if (emailBCCPositif == "YES")
+       advancedArgsPositif["bcc"] = emailYourAddrPositif;
+      
+      //Message sent
+      GmailApp.sendEmail(personPositif[5], emailSubjectPositif, emailMsgPositif, advancedArgsPositif);
+      
+      //Success
+      mysheetlist.getRange(i+1,1).setValue("Traité Accepté");
+      
+      //Date of the sending
+      var now         = new Date();
+      mysheetlist.getRange(i+1,3).setValue(now);
+      
+         // Déf Enddate and Maxenddate
+         var Enddate           = personPositif[19]
+         var maxenddate        = new Date(now.setDate(now.getDate()+"DAYS"))
+         
+         // If temporary replacement of somebody
+         if (personPositif[0] == "Accepté" && personPositif[8] == "To replace somebody momentarily" && maxenddate < Enddate) 
+          {
+            //Create a task on calendar 
+            var order       = ('Date maximum de suppression des droits de ' + personPositif[5])
+            CalendarApp.createAllDayEvent("Suppression Droits",maxenddate,{description:order}).removeAllReminders();
+            
+            //To modify the date information
+            mysheetlist.getRange(i+1,20).setValue(maxenddate);
+            
+            //Information message on maxenddate
+            var emailSubjectPositifMax    = 'WARNING : Maximal rights validity date';
+            var emailBodyPositifMax       = 'We can only grant an access on a temporary admin account up to'+ " " + maxenddate + '.If you need an access for more than 2 months, feel free to ask for a permanent admin access using the form. Regards.';
+            var emailMsgPositifMax        = emailSalutationPositif + " " + personPositif[3] + ", <br /><br />" + emailBodyPositifMax + "<br /><br />";
+            var advancedArgsPositifMax    = {htmlBody:emailMsgPositifMax, name:emailYourNamePositif, replyTo:replyToAddrPositif};
+            GmailApp.sendEmail(personPositif[5], emailSubjectPositifMax, emailMsgPositifMax, advancedArgsPositifMax);
+             
+          }
+      
+          //If meeting parameters
+          if (personPositif[0] == "Accepté" && personPositif[8] == "To replace somebody momentarily" && new Date(now.setDate(now.getDate()+60)) >= Enddate) 
+          {
+            //Create a task on calendar
+            var order       = ('Demande date de suppression des droits de ' + personPositif[5])
+            CalendarApp.createAllDayEvent("Suppression Droits", Enddate, {description:order}).removeAllReminders();
+          }
+      }
+  }
+      
+      //Email content to push
+  var emailSubjectNegatif    = mySheetNegatifCrit.getRange("B5").getValue();
+  var emailSalutationNegatif = mySheetNegatifCrit.getRange("B7").getValue();
+  var emailBodyNegatif       = mySheetNegatifCrit.getRange("B9").getValue();
+  var emailYourNameNegatif   = mySheetNegatifCrit.getRange("B11").getValue();
+  var emailYourAddrNegatif   = Session.getUser().getEmail();
+  var replyToAddrNegatif     = mySheetNegatifCrit.getRange("B13").getValue();
+  var emailBCCNegatif        = mySheetNegatifCrit.getRange("B17").getValue();
+
+  for (i=1; i < myContact.length; i++) 
+  {
+    var personNegatif = myContact[i];
+    
+    if (personNegatif[0] == "Refusé") 
+    {
+      var emailMsgNegatif = emailSalutationNegatif + " " + personNegatif[3] + ", <br /><br />" + emailBodyNegatif + "<br /><br />";
+      var advancedArgsNegatif = {htmlBody:emailMsgNegatif, name:emailYourNameNegatif, replyTo:replyToAddrNegatif};
+      if (emailBCCNegatif == "YES")
+       advancedArgsNegatif["bcc"] = emailYourAddrNegatif;
+      
+      GmailApp.sendEmail(personNegatif[5], emailSubjectNegatif, emailMsgNegatif, advancedArgsNegatif);
+      
+      mysheetlist.getRange(i+1,1).setValue("Traité Refusé");
+      var now         = new Date();
+      mysheetlist.getRange(i+1,3).setValue(now);
+
+    }
+  }
+     Browser.msgBox("SUCCESS !", "All messages were well sent.", Browser.Buttons.OK);
+        return;
+}
